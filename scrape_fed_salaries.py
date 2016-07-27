@@ -7,6 +7,7 @@ import logging
 logging.basicConfig(level=logging.INFO)
 
 num_display = 100
+TABLE_NAME = "federal_salaries"
 
 base_url = Template(
                     'http://www.fedsdatacenter.com/federal-pay-rates/output.php?n=&a=&l=&o=&y=2015&s'
@@ -33,30 +34,59 @@ def get_postgres_conn():
     )
 
 
+def load_data(data):
+    """
+    load fed sal data to postgres
+    """
+    conn = get_postgres_conn()
+    curs = conn.cursor()
+
+    for record in data:
+
+        try:
+            curs.execute("INSERT INTO %s VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                         (TABLE_NAME, record[0], record[1], record[2], record[3], record[4], record[5], record[6], record[7], record[8]))
+        except psycopg2.IntegrityError as e:
+            logging.error("Issue executing sql statement, integrity error")
+            logging.error(e)
+        except psycopg2.Error as e:
+            logging.error("Issue executing sql statement")
+            logging.error(e)
+
+            if conn:
+                conn.rollback()
+
+    conn.commit()
+
+    curs.close()
+    conn.close()
+
+
 def remove_erroneous_chars(data_to_clean):
     chars_to_remove = {'comma': ',', 'dollar': '$'}
 
-    print data_to_clean
+    logging.debug("Data before cleaning: {}".format(data_to_clean))
     separate_change = data_to_clean.split('.')
     final_sal = separate_change[0].replace(',', '')
     final_sal = final_sal.replace('$', '')
     cleaned_data = int(final_sal.replace('.', ''))
-    print cleaned_data
+    logging.debug("Data after cleaning: {}".format(cleaned_data))
 
     return cleaned_data
 
 
 def clean_data(data):
     for i in data:
-        print i[3]
-        i[3] = remove_erroneous_chars(remove_erroneous_chars)
-        print i[3]
-
-        print i[4]
-        i[4] = remove_erroneous_chars(remove_erroneous_chars)
-        print i[4]
-
+        # Grade
+        i[1] = int(i[1])
+        # Salary
+        i[3] = remove_erroneous_chars(i[3])
+        # Bonus
+        i[4] = remove_erroneous_chars(i[4])
+        # Year
         i[8] = int(i[8])
+
+    return data
 
 
 def get_max_display_record():
@@ -81,8 +111,12 @@ def get_paged_table_data(next_iter):
 
 def main():
     paging_count = int(get_max_display_record()) / num_display
+    next_iter = 0
 
     while paging_count > 0:
+        raw_data = get_paged_table_data(next_iter)
+        cleaned_data = clean_data(raw_data)
+        load_data(cleaned_data)
 
-
+        next_iter += 100
         paging_count -= 1
