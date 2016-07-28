@@ -1,7 +1,6 @@
 CREATE TABLE federal_salaries (
-    id          serial,
     name        varchar(40),
-    grade       integer,
+    grade       varchar(2),
     pay_plan    varchar(2),
     salary      integer,
     bonus       integer,
@@ -9,5 +8,6 @@ CREATE TABLE federal_salaries (
     location    varchar(50),
     occupation  varchar(50),
     fiscal_year integer,
+    id          serial,
     CONSTRAINT serial_id PRIMARY KEY(id)
 );

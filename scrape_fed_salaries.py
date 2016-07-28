@@ -4,7 +4,7 @@ import os
 import json
 import requests
 import logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 
 num_display = 100
 TABLE_NAME = "federal_salaries"
@@ -44,8 +44,8 @@ def load_data(data):
     for record in data:
 
         try:
-            curs.execute("INSERT INTO %s VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
-                         (TABLE_NAME, record[0], record[1], record[2], record[3], record[4], record[5], record[6], record[7], record[8]))
+            curs.execute("INSERT INTO federal_salaries VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                         (record[0], record[1], record[2], record[3], record[4], record[5], record[6], record[7], record[8]))
         except psycopg2.IntegrityError as e:
             logging.error("Issue executing sql statement, integrity error")
             logging.error(e)
@@ -76,15 +76,23 @@ def remove_erroneous_chars(data_to_clean):
 
 
 def clean_data(data):
+    logging.debug("All the data: {}".format(data))
     for i in data:
+        logging.debug("Current record: {}".format(i))
         # Grade
-        i[1] = int(i[1])
+        # TODO: More granular grade (some strings some numbers, separate)
+        # i[1] = int(i[1])
+        # logging.debug("Grade: {}". format(i[1]))
+
         # Salary
         i[3] = remove_erroneous_chars(i[3])
+        logging.debug("Salary: {}". format(i[3]))
         # Bonus
         i[4] = remove_erroneous_chars(i[4])
+        logging.debug("Bonus: {}". format(i[4]))
         # Year
         i[8] = int(i[8])
+        logging.debug("Year: {}". format(i[8]))
 
     return data
 
@@ -106,7 +114,8 @@ def get_paged_table_data(next_iter):
     url = base_url.render(next_record_start=next_iter, num_display=num_display)
     generated_url = requests.get(url)
     get_data = json.loads(generated_url.text)
-    return get_data
+    data = get_data['aaData']
+    return data
 
 
 def main():
@@ -114,9 +123,17 @@ def main():
     next_iter = 0
 
     while paging_count > 0:
+        logging.info("Start processing data with paging count '{}'".format(paging_count))
         raw_data = get_paged_table_data(next_iter)
+        logging.info("Paged records successfully pulled")
         cleaned_data = clean_data(raw_data)
+        logging.info("Data cleaned!")
         load_data(cleaned_data)
+        logging.info("Data with paging count '{}' finished processing!".format(paging_count))
 
         next_iter += 100
         paging_count -= 1
+
+
+if __name__ == "__main__":
+    main()
