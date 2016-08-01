@@ -1,16 +1,18 @@
 from jinja2 import Template
 import psycopg2
 import os
+import time
 import json
 import requests
 import logging
 logging.basicConfig(level=logging.DEBUG)
 
-num_display = 100
+num_display = 500
 TABLE_NAME = "federal_salaries"
+YEAR = 2016
 
 base_url = Template(
-                    'http://www.fedsdatacenter.com/federal-pay-rates/output.php?n=&a=&l=&o=&y=2015&s'
+                    'http://www.fedsdatacenter.com/federal-pay-rates/output.php?n=&a=&l=&o=&y={{year}}&s'
                     'Echo=1&iColumns=9&sColumns=%2C%2C%2C%2C%2C%2C%2C%2C&iDisplayStart={{next_record_start}}&i'
                     'DisplayLength={{num_display}}&mDataProp_0=0&bSortable_0=true&mDataProp_1=1&bSortable_1'
                     '=true&mDataProp_2=2&bSortable_2=true&mDataProp_3=3&bSortable_3=true&'
@@ -101,9 +103,9 @@ def get_max_display_record():
     never_hit_record_count = 1000000000
 
     # for display have some arbitrary ridiculous number
-    url = base_url.render(next_record_start=never_hit_record_count, num_display=num_display)
-
-    generated_url = requests.get(url)
+    url = base_url.render(next_record_start=never_hit_record_count, num_display=num_display, year=YEAR)
+    headers = {'user-agent': 'python personal project app/0.0.1'}
+    generated_url = requests.get(url, headers=headers)
     get_data = json.loads(generated_url.text)
     get_max_record_count = get_data['iTotalDisplayRecords']
 
@@ -111,7 +113,7 @@ def get_max_display_record():
 
 
 def get_paged_table_data(next_iter):
-    url = base_url.render(next_record_start=next_iter, num_display=num_display)
+    url = base_url.render(next_record_start=next_iter, num_display=num_display, year=YEAR)
     generated_url = requests.get(url)
     get_data = json.loads(generated_url.text)
     data = get_data['aaData']
@@ -133,6 +135,7 @@ def main():
 
         next_iter += 100
         paging_count -= 1
+        time.sleep(30)
 
 
 if __name__ == "__main__":
