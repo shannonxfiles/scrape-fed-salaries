@@ -133,7 +133,8 @@ def main():
         load_data(cleaned_data)
         logging.info("Data with paging count '{}' finished processing!".format(paging_count))
 
-        next_iter += 100
+        next_iter += num_display
+        logging.debug("Next iteration start number: {}".format(next_iter))
         paging_count -= 1
         time.sleep(30)
 
