@@ -1,12 +1,14 @@
-CREATE TABLE federal_salaries (
-    name        varchar(40),
+CREATE SCHEMA fed;
+
+CREATE TABLE fed.federal_salaries (
+    name        varchar,
     grade       varchar(2),
     pay_plan    varchar(2),
     salary      integer,
     bonus       integer,
-    agency      varchar(50),
-    location    varchar(50),
-    occupation  varchar(50),
+    agency      varchar,
+    location    varchar,
+    occupation  varchar,
     fiscal_year integer,
     id          serial,
     CONSTRAINT serial_id PRIMARY KEY(id)

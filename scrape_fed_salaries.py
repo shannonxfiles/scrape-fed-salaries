@@ -4,11 +4,14 @@ import os
 import time
 import json
 import requests
+from requests.exceptions import ConnectionError
 import logging
+import logging.handlers
 logging.basicConfig(level=logging.DEBUG)
+LOG_FILENAME = "log/fed_salary_log.log"
 
 num_display = 500
-TABLE_NAME = "federal_salaries"
+TABLE_NAME = "fed.federal_salaries"
 YEAR = 2016
 
 base_url = Template(
@@ -20,6 +23,17 @@ base_url = Template(
                     'bSortable_6=true&mDataProp_7=7&bSortable_7=true&mDataProp_8=8&bSortable_8=true'
                     '&iSortCol_0=0&sSortDir_0=asc&iSortingCols=1&_=1469308589082'
                     )
+
+
+def setup_logger(file_log=False):
+    if file_log is True:
+        l = logging.getLogger()
+        rotate_file_handler = logging.handlers.RotatingFileHandler(
+              LOG_FILENAME, maxBytes=1000000, backupCount=100)
+
+        f = logging.Formatter('%(asctime)s %(processName)-10s %(name)s %(levelname)-8s %(message)s')
+        rotate_file_handler.setFormatter(f)
+        l.addHandler(rotate_file_handler)
 
 
 def get_postgres_conn():
@@ -46,7 +60,7 @@ def load_data(data):
     for record in data:
 
         try:
-            curs.execute("INSERT INTO federal_salaries VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
+            curs.execute("INSERT INTO fed.federal_salaries VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
                          (record[0], record[1], record[2], record[3], record[4], record[5], record[6], record[7], record[8]))
         except psycopg2.IntegrityError as e:
             logging.error("Issue executing sql statement, integrity error")
@@ -114,13 +128,21 @@ def get_max_display_record():
 
 def get_paged_table_data(next_iter):
     url = base_url.render(next_record_start=next_iter, num_display=num_display, year=YEAR)
-    generated_url = requests.get(url)
+    try:
+        generated_url = requests.get(url)
+    except ConnectionError as e:
+        logging.error(e)
+        time.sleep(300)
+        logging.error("Trying connecting again after sleep")
+        generated_url = requests.get(url)
+
     get_data = json.loads(generated_url.text)
     data = get_data['aaData']
     return data
 
 
 def main():
+    setup_logger(file_log=True)
     paging_count = int(get_max_display_record()) / num_display
     next_iter = 0
 
@@ -136,6 +158,7 @@ def main():
         next_iter += num_display
         logging.debug("Next iteration start number: {}".format(next_iter))
         paging_count -= 1
+        # TODO: Add retry
         time.sleep(30)
 
 
